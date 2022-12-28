@@ -1,41 +1,39 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"net/http"
 
-	"github.com/jbholae/golang-chat/pkg/websocket"
+	"github.com/jbholae/golang-chat/config"
 )
 
-func serverWS(pool *websocket.Pool, w http.ResponseWriter, r *http.Request) {
-	fmt.Println("websocket endpoint reached")
-
-	conn, err := websocket.Upgrade(w, r)
-
-	if err != nil {
-		fmt.Fprintf(w, "%+v\n", err)
-	}
-
-	client := &websocket.Client{
-		Conn: conn,
-		Pool: pool,
-	}
-	pool.Register <- client
-	client.Read()
-}
-
-func setupRoutes() {
-	pool := websocket.NewPool()
-	go pool.Start()
-
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serverWS(pool, w, r)
-
-	})
-}
+var addr = flag.String("addr", ":8000", "http server address")
 
 func main() {
-	fmt.Println("Chat")
-	setupRoutes()
-	http.ListenAndServe(":9000", nil)
+	fmt.Print("on the go")
+	flag.Parse()
+
+	// config.CreateRedisClient()
+
+	config.InitDB()
+	// defer db.Close()
+
+	// userRepository := &repository.UserRepository{Db: db}
+
+	// wsServer := NewWebsocketServer(repository.RoomRepository{Db: db}, repository.UserRepository{Db: db})
+	wsServer := NewWebsocketServer()
+	go wsServer.Run()
+
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		ServeWs(wsServer, w, r)
+		fmt.Print(" running")
+	})
+
+	fs := http.FileServer(http.Dir("./public"))
+	http.Handle("/", fs)
+
+	// log.Fatal(http.ListenAndServe(*addr, nil))
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }
