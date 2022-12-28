@@ -1,13 +1,9 @@
 package models
 
-type User interface {
-	GetId() string
-	GetName() string
+type User struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
-type UserRepository interface {
-	AddUser(user User)
-	RemoveUser(user User)
-	FindUserById(ID string) User
-	GetAllUsers() []User
-}
+func (user *User) GetId() string   { return user.Id }
+func (user *User) GetName() string { return user.Name }

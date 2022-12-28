@@ -1,23 +1,15 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/jbholae/golang-chat/config"
 )
 
-var addr = flag.String("addr", ":8000", "http server address")
-
 func main() {
-	fmt.Print("on the go")
-	flag.Parse()
-
 	// config.CreateRedisClient()
 
-	config.InitDB()
+	//_ = config.InitDB()
 	// defer db.Close()
 
 	// userRepository := &repository.UserRepository{Db: db}
@@ -26,9 +18,9 @@ func main() {
 	wsServer := NewWebsocketServer()
 	go wsServer.Run()
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
 		ServeWs(wsServer, w, r)
-		fmt.Print(" running")
+		fmt.Println("running")
 	})
 
 	fs := http.FileServer(http.Dir("./public"))

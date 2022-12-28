@@ -1,13 +1,19 @@
 package models
 
-
-type Room interface {
-	GetId() string
-	GetName() string
-	GetPrivate() bool
+type Room struct {
+	Id      string
+	Name    string
+	Private bool
 }
 
-type RoomRepository interface {
-	AddRoom(room Room)
-	FindRoomByName(name string) Room
+func (room *Room) GetId() string {
+	return room.Id
+}
+
+func (room *Room) GetName() string {
+	return room.Name
+}
+
+func (room *Room) GetPrivate() bool {
+	return room.Private
 }

@@ -5,13 +5,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type User struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+type User interface {
+	GetId() string
+	GetName() string
 }
 
-func (user *User) GetId() string   { return user.Id }
-func (user *User) GetName() string { return user.Name }
+type IUserRepository interface {
+	AddUser(user User)
+	RemoveUser(user User)
+	FindUserById(ID string) User
+	GetAllUsers() []User
+}
 
 type UserRepository struct {
 	// Db *sql.DB
@@ -36,32 +40,24 @@ func (repo *UserRepository) RemoveUser(user models.User) error {
 	return repo.Db.Model(&user).Where("id = ?", user.GetId).Error
 }
 
-func (repo *UserRepository) FindUserById(ID string) models.User {
-
+func (repo *UserRepository) FindUserById(ID string) (user models.User) {
 	// row := repo.Db.QueryRow("SELECT id, name FROM user where id = ? LIMIT 1", ID)
-	row := repo.Db.Raw("SELECT id, name FROM user where id = ? LIMIT 1", ID)
+	row := repo.Db.Raw("SELECT id, name FROM user WHERE id = ? LIMIT 1", ID)
 
-	var user User
-
-	if err := row.Scan(&user.Id); err != nil {
+	if err := row.Scan(&user); err != nil {
 		// if err == sql.ErrNoRows {
 		// 	return nil
 		// }
 		panic(err)
 	}
 
-	return &user
-
+	return user
 }
 
-func (repo *UserRepository) GetAllUsers() []models.User {
-
+func (repo *UserRepository) GetAllUsers() (users []models.User) {
 	// rows, err := repo.Db.Query("SELECT id, name FROM user")
 	rows := repo.Db.Raw("SELECT * FROM user")
-	var users []models.User
-	var user User
-	rows.Scan(&user.Id)
-	users = append(users, &user)
+	rows.Find(&users)
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }

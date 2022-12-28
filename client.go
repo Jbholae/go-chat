@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jbholae/golang-chat/models"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -46,7 +44,7 @@ type Client struct {
 	Name      string    `json:"name"`
 	PhotoUrl  string    `json:"photo_url"`
 	CreatedAt time.Time `json:"created_at"`
-	rooms     map[*Room]bool
+	rooms     map[*Rooms]bool
 }
 
 func newClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
@@ -56,7 +54,7 @@ func newClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
 		conn:     conn,
 		wsServer: wsServer,
 		send:     make(chan []byte, 256),
-		rooms:    make(map[*Room]bool),
+		rooms:    make(map[*Rooms]bool),
 	}
 
 }
@@ -64,6 +62,7 @@ func newClient(conn *websocket.Conn, wsServer *WsServer, name string) *Client {
 // This goRoutine read's message
 func (client *Client) readPump() {
 	defer func() {
+		println("stopped runnign")
 		client.disconnect()
 	}()
 
@@ -155,29 +154,28 @@ func ServeWs(wsServer *WsServer, w http.ResponseWriter, r *http.Request) {
 
 	client := newClient(conn, wsServer, name[0])
 
-	go client.writePump()
 	go client.readPump()
+	go client.writePump()
 
 	wsServer.register <- client
 }
 
 func (client *Client) handleNewMessage(jsonMessage []byte) {
-
 	var message Message
 	if err := json.Unmarshal(jsonMessage, &message); err != nil {
 		log.Printf("Error on unmarshal JSON message %s", err)
 		return
 	}
 	// Attach the client object as the sender of the messsage.
-	message.Sender = client
+	message.Sender = *client
 
 	switch message.Action {
 	case SendMessageAction:
 		// The send-message action, this will send messages to a specific room now.
 		// Which room wil depend on the message Target
-		roomName := message.Target
+		room := message.Target
 		// Use the ChatServer method to find the room, and if found, broadcast!
-		if room := client.wsServer.findRoomByName(roomName.Name); room != nil {
+		if room := client.wsServer.findRoomByName(room.Name); room != nil {
 			room.broadcast <- &message
 		}
 
@@ -200,9 +198,7 @@ func (client *Client) handleJoinRoomMessage(message Message) {
 		room = client.wsServer.createRoom(roomName, false)
 	}
 
-	client.rooms[room] = true
-	room.register <- client
-	// client.joinRoom(roomName, nil)
+	client.joinRoom(roomName, client, room)
 }
 
 func (client *Client) handleLeaveRoomMessage(message Message) {
@@ -219,8 +215,7 @@ func (client *Client) handleLeaveRoomMessage(message Message) {
 }
 
 func (client *Client) handleJoinRoomPrivateMessage(message Message) {
-
-	target := client.wsServer.findClientByID(message.Message)
+	target := client.wsServer.findClientByID(message.Sender.ID)
 
 	if target == nil {
 		return
@@ -235,16 +230,17 @@ func (client *Client) handleJoinRoomPrivateMessage(message Message) {
 	// 	client.inviteTargetUser(target, joinedRoom)
 	// }
 
-	client.joinRoom(roomName, target)
-	target.joinRoom(roomName, client)
+	client.joinRoom(roomName, target, nil)
+	target.joinRoom(roomName, client, nil)
 
 }
 
-func (client *Client) joinRoom(roomName string, sender models.User) *Room {
-
-	room := client.wsServer.findRoomByName(roomName)
+func (client *Client) joinRoom(roomName string, sender *Client, room *Rooms) *Rooms {
 	if room == nil {
-		room = client.wsServer.createRoom(roomName, sender != nil)
+		room := client.wsServer.findRoomByName(roomName)
+		if room == nil {
+			room = client.wsServer.createRoom(roomName, sender != nil)
+		}
 	}
 
 	// Don't allow to join private rooms through public room message
@@ -257,12 +253,12 @@ func (client *Client) joinRoom(roomName string, sender models.User) *Room {
 		client.rooms[room] = true
 		room.register <- client
 
-		client.notifyRoomJoined(room, sender)
+		client.notifyRoomJoined(room, *sender)
 	}
 	return room
 }
 
-func (client *Client) isInRoom(room *Room) bool {
+func (client *Client) isInRoom(room *Rooms) bool {
 	if _, ok := client.rooms[room]; ok {
 		return true
 	}
@@ -270,7 +266,7 @@ func (client *Client) isInRoom(room *Room) bool {
 	return false
 }
 
-func (client *Client) notifyRoomJoined(room *Room, sender models.User) {
+func (client *Client) notifyRoomJoined(room *Rooms, sender Client) {
 	message := Message{
 		Action: RoomJoinedAction,
 		Target: room,

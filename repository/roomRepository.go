@@ -5,22 +5,9 @@ import (
 	"gorm.io/gorm"
 )
 
-type Room struct {
-	Id      string
-	Name    string
-	Private bool
-}
-
-func (room *Room) GetId() string {
-	return room.Id
-}
-
-func (room *Room) GetName() string {
-	return room.Name
-}
-
-func (room *Room) GetPrivate() bool {
-	return room.Private
+type IRoomRepository interface {
+	AddRoom(room models.Room)
+	FindRoomByName(name string) models.Room
 }
 
 type RoomRepository struct {
@@ -28,20 +15,13 @@ type RoomRepository struct {
 }
 
 func (repo *RoomRepository) AddRoom(room models.Room) error {
-	// stmt, err := repo.Db.Prepare("INSERT INTO room(id, name, private) values(?,?,?)")
-	// checkErr(err)
-
-	// _, err = stmt.Exec(room.GetId(), room.GetName(), room.GetPrivate())
-	// checkErr(err)
 	return repo.Db.Create(room).Error
 }
 
-func (repo *RoomRepository) FindRoomByName(name string) models.Room {
+func (repo *RoomRepository) FindRoomByName(name string) (room models.Room) {
 
-	row := repo.Db.Raw("SELECT id, name, private FROM room where name = ? LIMIT 1", name)
+	row := repo.Db.Raw("SELECT id, name, private FROM room WHERE name = ? LIMIT 1", name)
 	// row := repo.Db.q
-
-	var room Room
 
 	if err := row.Scan(&room.Name); err != nil {
 		// if err == sql.ErrNoRows {
@@ -50,12 +30,5 @@ func (repo *RoomRepository) FindRoomByName(name string) models.Room {
 		panic(err)
 	}
 
-	return &room
-
+	return room
 }
-
-// func checkErr(err error) {
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }

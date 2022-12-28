@@ -2,20 +2,19 @@ package main
 
 import (
 	"github.com/google/uuid"
-	"github.com/jbholae/golang-chat/models"
 )
 
 const PubSubGeneralChannel = "general"
 
 type WsServer struct {
-	clients        map[*Client]bool
-	register       chan *Client
-	unregister     chan *Client
-	broadcast      chan []byte
-	rooms          map[*Room]bool
-	users          []models.User
-	roomRepository models.RoomRepository
-	userRepository models.UserRepository
+	clients    map[*Client]bool
+	register   chan *Client
+	unregister chan *Client
+	broadcast  chan []byte
+	rooms      map[*Rooms]bool
+	//users      []models.User
+	//roomRepository repository.RoomRepository
+	//userRepository models.UserRepository
 }
 
 // NewWebsocketServer creates a new WsServer type
@@ -25,9 +24,9 @@ func NewWebsocketServer() *WsServer {
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		rooms:      make(map[*Room]bool),
+		rooms:      make(map[*Rooms]bool),
 		broadcast:  make(chan []byte),
-		// roomRepository: roomRepository,
+		//roomRepository: roomRepository,
 		// userRepository: userRepository,
 	}
 
@@ -85,7 +84,7 @@ func (server *WsServer) unregisterClient(client *Client) {
 func (server *WsServer) notifyClientJoined(client *Client) {
 	message := &Message{
 		Action: UserJoinedAction,
-		Sender: client,
+		Sender: *client,
 	}
 
 	server.broadcastToClients(message.encode())
@@ -94,7 +93,7 @@ func (server *WsServer) notifyClientJoined(client *Client) {
 func (server *WsServer) notifyClientLeft(client *Client) {
 	message := &Message{
 		Action: UserLeftAction,
-		Sender: client,
+		Sender: *client,
 	}
 
 	server.broadcastToClients(message.encode())
@@ -104,7 +103,7 @@ func (server *WsServer) listOnlineClients(client *Client) {
 	for existingClient := range server.clients {
 		message := &Message{
 			Action: UserJoinedAction,
-			Sender: existingClient,
+			Sender: *existingClient,
 		}
 		client.send <- message.encode()
 	}
@@ -124,10 +123,11 @@ func (server *WsServer) broadcastToClients(message []byte) {
 	}
 }
 
-func (server *WsServer) findRoomByID(ID string) *Room {
-	var foundRoom *Room
+func (server *WsServer) findRoomByID(ID string) *Rooms {
+	var foundRoom *Rooms
+	parse, _ := uuid.Parse(ID)
 	for room := range server.rooms {
-		if room.GetId() == ID {
+		if room.ID == parse {
 			foundRoom = room
 			break
 		}
@@ -136,7 +136,7 @@ func (server *WsServer) findRoomByID(ID string) *Room {
 	return foundRoom
 }
 
-func (server *WsServer) createRoom(name string, private bool) *Room {
+func (server *WsServer) createRoom(name string, private bool) *Rooms {
 	room := NewRoom(name, private)
 	// server.roomRepository.AddRoom(room)
 	go room.RunRoom()
@@ -145,10 +145,10 @@ func (server *WsServer) createRoom(name string, private bool) *Room {
 	return room
 }
 
-func (server *WsServer) findClientByID(ID string) *Client {
+func (server *WsServer) findClientByID(ID uuid.UUID) *Client {
 	var foundClient *Client
 	for client := range server.clients {
-		if client.ID.String() == ID {
+		if client.ID == ID {
 			foundClient = client
 			break
 		}
@@ -157,8 +157,8 @@ func (server *WsServer) findClientByID(ID string) *Client {
 	return foundClient
 }
 
-func (server *WsServer) runRoomFromRepository(name string) *Room {
-	var room *Room
+/*func (server *WsServer) runRoomFromRepository(name string) *Rooms {
+	var room *Rooms
 	dbRoom := server.roomRepository.FindRoomByName(name)
 	if dbRoom != nil {
 		room = NewRoom(dbRoom.GetName(), dbRoom.GetPrivate())
@@ -170,21 +170,22 @@ func (server *WsServer) runRoomFromRepository(name string) *Room {
 
 	return room
 }
+*/
 
-func (server *WsServer) findRoomByName(name string) *Room {
-	var foundRoom *Room
+func (server *WsServer) findRoomByName(name string) *Rooms {
+	var foundRoom *Rooms
 	for room := range server.rooms {
-		if room.GetName() == name {
+		if room.Name == name {
 			foundRoom = room
 			break
 		}
 	}
 
 	// NEW: if there is no room, try to create it from the repo
-	if foundRoom == nil {
-		// Try to run the room from the repository, if it is found.
-		foundRoom = server.runRoomFromRepository(name)
-	}
+	//if foundRoom == nil {
+	// Try to run the room from the repository, if it is found.
+	//foundRoom = server.runRoomFromRepository(name)
+	//}
 
 	return foundRoom
 }
@@ -238,13 +239,13 @@ func (server *WsServer) findRoomByName(name string) *Room {
 // }
 
 func (server *WsServer) handleUserJoinPrivate(message Message) {
-	targetClient := server.findClientByID(message.Message)
+	targetClient := server.findClientByID(message.Sender.ID)
 	if targetClient != nil {
-		targetClient.joinRoom(message.Target.GetName(), message.Sender)
+		targetClient.joinRoom(message.Target.Name, &message.Sender, nil)
 	}
 }
 
-func (server *WsServer) FindUserById(ID string) models.User {
+/*func (server *WsServer) FindUserById(ID string) models.User {
 	var foundUser models.User
 	for _, client := range server.users {
 		if client.GetId() == ID {
@@ -253,15 +254,15 @@ func (server *WsServer) FindUserById(ID string) models.User {
 		}
 	}
 	return foundUser
-}
+}*/
 
-func (server *WsServer) handleUserJoined(message Message) {
+/*func (server *WsServer) handleUserJoined(message Message) {
 	// Add the user to the slice
-	server.users = append(server.users, message.Sender)
+	server.users = append(server.users, *message.Sender)
 	server.broadcastToClients(message.encode())
-}
+}*/
 
-func (server *WsServer) handleUserLeft(message Message) {
+/*func (server *WsServer) handleUserLeft(message Message) {
 	// Remove the user from the slice
 	for i, user := range server.users {
 		if user.GetId() == message.Sender.GetId() {
@@ -270,4 +271,4 @@ func (server *WsServer) handleUserLeft(message Message) {
 		}
 	}
 	server.broadcastToClients(message.encode())
-}
+}*/

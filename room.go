@@ -11,7 +11,7 @@ var ctx = context.Background()
 
 const welcomeMessage = "%s joined the room"
 
-type Room struct {
+type Rooms struct {
 	ID         uuid.UUID `json:"id"`
 	Name       string    `json:"name"`
 	clients    map[*Client]bool
@@ -22,8 +22,8 @@ type Room struct {
 }
 
 // NewRoom creates a new Room
-func NewRoom(name string, private bool) *Room {
-	return &Room{
+func NewRoom(name string, private bool) *Rooms {
+	return &Rooms{
 		ID:         uuid.New(),
 		Name:       name,
 		clients:    make(map[*Client]bool),
@@ -35,7 +35,7 @@ func NewRoom(name string, private bool) *Room {
 }
 
 // RunRoom runs our room, accepting various requests
-func (room *Room) RunRoom() {
+func (room *Rooms) RunRoom() {
 	// go room.subscribeToRoomMessages()
 	for {
 		select {
@@ -53,7 +53,7 @@ func (room *Room) RunRoom() {
 	}
 }
 
-func (room *Room) registerClientInRoom(client *Client) {
+func (room *Rooms) registerClientInRoom(client *Client) {
 	// if !room.Private {
 	// by sending the message first the new user won't see his own message.
 	room.notifyClientJoined(client)
@@ -61,19 +61,19 @@ func (room *Room) registerClientInRoom(client *Client) {
 	room.clients[client] = true
 }
 
-func (room *Room) unregisterClientInRoom(client *Client) {
+func (room *Rooms) unregisterClientInRoom(client *Client) {
 	if ok := room.clients[client]; ok {
 		delete(room.clients, client)
 	}
 }
 
-func (room *Room) broadcastToClientsInRoom(message []byte) {
+func (room *Rooms) broadcastToClientsInRoom(message []byte) {
 	for client := range room.clients {
 		client.send <- message
 	}
 }
 
-func (room *Room) notifyClientJoined(client *Client) {
+func (room *Rooms) notifyClientJoined(client *Client) {
 	message := &Message{
 		Action:  SendMessageAction,
 		Target:  room,
@@ -82,18 +82,6 @@ func (room *Room) notifyClientJoined(client *Client) {
 
 	room.broadcastToClientsInRoom(message.encode())
 	// room.publishRoomMessage(message.encode())
-}
-
-func (room *Room) GetId() string {
-	return room.ID.String()
-}
-
-func (room *Room) GetName() string {
-	return room.Name
-}
-
-func (room *Room) GetPrivate() bool {
-	return room.Private
 }
 
 // func (room *Room) publishRoomMessage(message []byte) {
