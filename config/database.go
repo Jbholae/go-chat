@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/jbholae/golang-chat/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -26,7 +27,7 @@ func InitDB() *gorm.DB {
 		log.Fatal(err)
 	}
 
-	db.AutoMigrate()
+	db.AutoMigrate(&models.User{}, &models.Room{}, &models.UserRoom{})
 
 	// sqlStmt := `
 	// CREATE TABLE IF NOT EXISTS room (
