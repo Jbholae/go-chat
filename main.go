@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
+	"github.com/jbholae/golang-chat/controller"
 )
 
 func main() {
@@ -15,6 +18,11 @@ func main() {
 	// userRepository := &repository.UserRepository{Db: db}
 
 	// wsServer := NewWebsocketServer(repository.RoomRepository{Db: db}, repository.UserRepository{Db: db})
+	r := mux.NewRouter()
+
+	r.HandleFunc("api/user", controller.CreatedUser).Methods("POST")
+	r.HandleFunc("api/room", controller.GetRooms).Methods("Get")
+	
 	wsServer := NewWebsocketServer()
 	go wsServer.Run()
 
