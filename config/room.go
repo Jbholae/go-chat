@@ -1,36 +1,36 @@
-package main
+package config
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/google/uuid"
+	"golang-chat/constants"
+	"golang-chat/models"
+	"gorm.io/gorm"
 )
-
-var ctx = context.Background()
 
 const welcomeMessage = "%s joined the room"
 
 type Rooms struct {
-	ID         uuid.UUID `json:"id"`
-	Name       string    `json:"name"`
+	models.Room
 	clients    map[*Client]bool
-	register   chan *Client
-	unregister chan *Client
-	broadcast  chan *Message
-	Private    bool `json:"private"`
+	Register   chan *Client
+	Unregister chan *Client
+	Broadcast  chan *models.Message
 }
 
 // NewRoom creates a new Room
 func NewRoom(name string, private bool) *Rooms {
 	return &Rooms{
-		ID:         uuid.New(),
-		Name:       name,
+		Room: models.Room{
+			Model: gorm.Model{
+				ID: 112,
+			},
+			Name:    name,
+			Private: private,
+		},
 		clients:    make(map[*Client]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		broadcast:  make(chan *Message),
-		Private:    private,
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
+		Broadcast:  make(chan *models.Message),
 	}
 }
 
@@ -40,14 +40,14 @@ func (room *Rooms) RunRoom() {
 	for {
 		select {
 
-		case client := <-room.register:
+		case client := <-room.Register:
 			room.registerClientInRoom(client)
 
-		case client := <-room.unregister:
+		case client := <-room.Unregister:
 			room.unregisterClientInRoom(client)
 
-		case message := <-room.broadcast:
-			room.broadcastToClientsInRoom(message.encode())
+		case message := <-room.Broadcast:
+			room.broadcastToClientsInRoom(message.Encode())
 		}
 
 	}
@@ -69,18 +69,18 @@ func (room *Rooms) unregisterClientInRoom(client *Client) {
 
 func (room *Rooms) broadcastToClientsInRoom(message []byte) {
 	for client := range room.clients {
-		client.send <- message
+		client.Send <- message
 	}
 }
 
 func (room *Rooms) notifyClientJoined(client *Client) {
-	message := &Message{
-		Action:  SendMessageAction,
-		Target:  room,
+	message := &models.Message{
+		Action:  constants.SendMessageAction,
+		Target:  room.Room,
 		Message: fmt.Sprintf(welcomeMessage, client.GetName()),
 	}
 
-	room.broadcastToClientsInRoom(message.encode())
+	room.broadcastToClientsInRoom(message.Encode())
 	// room.publishRoomMessage(message.encode())
 }
 

@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"encoding/json"
@@ -7,24 +7,16 @@ import (
 	"github.com/google/uuid"
 )
 
-const SendMessageAction = "send-message"
-const JoinRoomAction = "join-room"
-const LeaveRoomAction = "leave-room"
-const UserJoinedAction = "user-join"
-const UserLeftAction = "user-left"
-const JoinRoomPrivateAction = "join-room-private"
-const RoomJoinedAction = "room-joined"
-
 type Message struct {
 	Id      uuid.UUID `json:"id"`
 	UserId  uuid.UUID `json:"user_id"`
 	Action  string    `json:"action"`
 	Message string    `json:"message"`
-	Target  *Rooms    `json:"target"`
+	Target  Room      `json:"target"`
 	Sender  Client    `json:"sender"`
 }
 
-func (message *Message) encode() []byte {
+func (message *Message) Encode() []byte {
 	json, err := json.Marshal(message)
 	if err != nil {
 		log.Println(err)
@@ -36,7 +28,6 @@ func (message *Message) encode() []byte {
 func (message *Message) UnmarshalJSON(data []byte) error {
 	type Alias Message
 	msg := &struct {
-		Sender Client `json:"sender"`
 		*Alias
 	}{
 		Alias: (*Alias)(message),
@@ -44,6 +35,5 @@ func (message *Message) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
-	message.Sender = msg.Sender
 	return nil
 }

@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/jbholae/golang-chat/models"
+	"golang-chat/models"
 	"gorm.io/gorm"
 )
 

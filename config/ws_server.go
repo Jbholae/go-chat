@@ -1,15 +1,17 @@
-package main
+package config
 
 import (
 	"github.com/google/uuid"
+	"golang-chat/constants"
+	"golang-chat/models"
 )
 
 const PubSubGeneralChannel = "general"
 
 type WsServer struct {
 	clients    map[*Client]bool
-	register   chan *Client
-	unregister chan *Client
+	Register   chan *Client
+	Unregister chan *Client
 	broadcast  chan []byte
 	rooms      map[*Rooms]bool
 	//users      []models.User
@@ -22,8 +24,8 @@ type WsServer struct {
 func NewWebsocketServer() *WsServer {
 	wsServer := &WsServer{
 		clients:    make(map[*Client]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		Register:   make(chan *Client),
+		Unregister: make(chan *Client),
 		rooms:      make(map[*Rooms]bool),
 		broadcast:  make(chan []byte),
 		//roomRepository: roomRepository,
@@ -42,10 +44,10 @@ func (server *WsServer) Run() {
 	for {
 		select {
 
-		case client := <-server.register:
+		case client := <-server.Register:
 			server.registerClient(client)
 
-		case client := <-server.unregister:
+		case client := <-server.Unregister:
 			server.unregisterClient(client)
 
 		case message := <-server.broadcast:
@@ -82,30 +84,30 @@ func (server *WsServer) unregisterClient(client *Client) {
 }
 
 func (server *WsServer) notifyClientJoined(client *Client) {
-	message := &Message{
-		Action: UserJoinedAction,
-		Sender: *client,
+	message := &models.Message{
+		Action: constants.UserJoinedAction,
+		Sender: client.Client,
 	}
 
-	server.broadcastToClients(message.encode())
+	server.broadcastToClients(message.Encode())
 }
 
 func (server *WsServer) notifyClientLeft(client *Client) {
-	message := &Message{
-		Action: UserLeftAction,
-		Sender: *client,
+	message := &models.Message{
+		Action: constants.UserLeftAction,
+		Sender: client.Client,
 	}
 
-	server.broadcastToClients(message.encode())
+	server.broadcastToClients(message.Encode())
 }
 
 func (server *WsServer) listOnlineClients(client *Client) {
 	for existingClient := range server.clients {
-		message := &Message{
-			Action: UserJoinedAction,
-			Sender: *existingClient,
+		message := &models.Message{
+			Action: constants.UserJoinedAction,
+			Sender: existingClient.Client,
 		}
-		client.send <- message.encode()
+		client.Send <- message.Encode()
 	}
 	// for _, user := range server.users {
 	// 	message := &Message{
@@ -119,15 +121,14 @@ func (server *WsServer) listOnlineClients(client *Client) {
 
 func (server *WsServer) broadcastToClients(message []byte) {
 	for client := range server.clients {
-		client.send <- message
+		client.Send <- message
 	}
 }
 
-func (server *WsServer) findRoomByID(ID string) *Rooms {
+func (server *WsServer) findRoomByID(ID uint) *Rooms {
 	var foundRoom *Rooms
-	parse, _ := uuid.Parse(ID)
 	for room := range server.rooms {
-		if room.ID == parse {
+		if room.ID == ID {
 			foundRoom = room
 			break
 		}
@@ -136,7 +137,7 @@ func (server *WsServer) findRoomByID(ID string) *Rooms {
 	return foundRoom
 }
 
-func (server *WsServer) createRoom(name string, private bool) *Rooms {
+func (server *WsServer) CreateRoom(name string, private bool) *Rooms {
 	room := NewRoom(name, private)
 	// server.roomRepository.AddRoom(room)
 	go room.RunRoom()
@@ -145,7 +146,7 @@ func (server *WsServer) createRoom(name string, private bool) *Rooms {
 	return room
 }
 
-func (server *WsServer) findClientByID(ID uuid.UUID) *Client {
+func (server *WsServer) FindClientByID(ID uuid.UUID) *Client {
 	var foundClient *Client
 	for client := range server.clients {
 		if client.ID == ID {
@@ -172,7 +173,7 @@ func (server *WsServer) findClientByID(ID uuid.UUID) *Client {
 }
 */
 
-func (server *WsServer) findRoomByName(name string) *Rooms {
+func (server *WsServer) FindRoomByName(name string) *Rooms {
 	var foundRoom *Rooms
 	for room := range server.rooms {
 		if room.Name == name {
@@ -238,10 +239,10 @@ func (server *WsServer) findRoomByName(name string) *Rooms {
 // 	}
 // }
 
-func (server *WsServer) handleUserJoinPrivate(message Message) {
-	targetClient := server.findClientByID(message.Sender.ID)
+func (server *WsServer) handleUserJoinPrivate(message models.Message) {
+	targetClient := server.FindClientByID(message.Sender.ID)
 	if targetClient != nil {
-		targetClient.joinRoom(message.Target.Name, &message.Sender, nil)
+		targetClient.JoinRoom(message.Target.Name, targetClient, nil)
 	}
 }
 
